@@ -20,8 +20,8 @@ type (
 	Plan interface {
 		io.Closer
 		Params() []string
-		NewSession(ctx context.Context, setters ...SessionOption) (Session, error)
-		NewDebugSession(ctx context.Context, setters ...SessionOption) (debugger.Session, error)
+		NewSession(ctx context.Context, opts ...SessionOption) (Session, error)
+		NewDebugSession(ctx context.Context, opts ...SessionOption) (debugger.Session, error)
 	}
 
 	Session interface {

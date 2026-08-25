@@ -30,64 +30,63 @@ type (
 
 	// Value is a safely formatted debugger value.
 	Value struct {
-		Type      string
-		Display   string
-		Reference ValueReference
+		Type      string         `json:"type"`
+		Display   string         `json:"display"`
+		Reference ValueReference `json:"reference"`
 	}
 
 	// Variable describes a visible local or bind parameter.
 	Variable struct {
-		Name    string
-		Value   Value
-		Mutable bool
-		Param   bool
+		Name    string `json:"name"`
+		Value   Value  `json:"value"`
+		Mutable bool   `json:"mutable"`
+		Param   bool   `json:"param"`
 	}
 
 	// Frame describes the paused top frame or one of its callers.
 	Frame struct {
-		Name       string
-		Location   source.Location
-		FunctionID FunctionID
+		Name       string          `json:"name"`
+		Location   source.Location `json:"location"`
+		FunctionID FunctionID      `json:"functionID"`
 	}
 
 	// Breakpoint describes a requested source-location breakpoint and its resolved
 	// executable location, when one exists.
 	Breakpoint struct {
-		Location          source.Location
-		RequestedPosition source.Position
-		ID                BreakpointID
-		PointID           PointID
-		FunctionID        FunctionID
-		BindingMode       BreakpointBindingMode
+		Location          source.Range          `json:"location"`
+		RequestedPosition source.Location       `json:"requestedPosition"`
+		ID                BreakpointID          `json:"id"`
+		PointID           PointID               `json:"pointID"`
+		FunctionID        FunctionID            `json:"functionID"`
+		BindingMode       BreakpointBindingMode `json:"bindingMode"`
 		Bound             bool
 	}
 
 	// BreakpointOptions configures how a requested source location binds.
 	BreakpointOptions struct {
-		BindingMode BreakpointBindingMode
+		BindingMode BreakpointBindingMode `json:"bindingMode"`
 	}
 
 	// Event reports a debugger stop, completion, or termination.
 	Event struct {
-		Error            error
-		Output           *result.Output
-		Reason           Reason
-		HitBreakpointIDs []BreakpointID
-		Location         source.Location
-		Depth            int
+		Error            error          `json:"error"`
+		Output           result.Output  `json:"output"`
+		Reason           Reason         `json:"reason"`
+		HitBreakpointIDs []BreakpointID `json:"hitBreakpointIDs"`
+		Location         source.Range   `json:"location"`
+		Depth            int            `json:"depth"`
 	}
 
 	Session interface {
 		io.Closer
-
 		Start(ctx context.Context) (*Event, error)
 		Continue(ctx context.Context) (*Event, error)
 		Step(ctx context.Context) (*Event, error)
 		Next(ctx context.Context) (*Event, error)
 		Out(ctx context.Context) (*Event, error)
 		Pause() error
-		SetBreakpoint(file string, line int) (Breakpoint, error)
-		SetBreakpointAt(location source.Location, opts BreakpointOptions)
+		SetBreakpoint(pos source.Location) (Breakpoint, error)
+		SetBreakpointAt(loc source.Location, opts BreakpointOptions) (Breakpoint, error)
 		DeleteBreakpoint(id BreakpointID) error
 		Breakpoints() []Breakpoint
 		Frames() ([]Frame, error)
@@ -116,3 +115,37 @@ const (
 	BreakpointBindExact
 	BreakpointBindNextExecutableInFunction
 )
+
+func ReasonFromString(s string) Reason {
+	switch s {
+	case "entry":
+		return ReasonEntry
+	case "breakpoint":
+		return ReasonBreakpoint
+	case "step":
+		return ReasonStep
+	case "pause":
+		return ReasonPause
+	case "runtime-error":
+		return ReasonRuntimeError
+	case "completed":
+		return ReasonCompleted
+	case "terminated":
+		return ReasonTerminated
+	default:
+		return ""
+	}
+}
+
+func BreakpointBindingModeFromString(s string) BreakpointBindingMode {
+	switch s {
+	case "next-executable-in-file":
+		return BreakpointBindNextExecutableInFile
+	case "exact":
+		return BreakpointBindExact
+	case "next-executable-in-function":
+		return BreakpointBindNextExecutableInFunction
+	default:
+		return BreakpointBindNextExecutableInFile
+	}
+}
