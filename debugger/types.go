@@ -1,17 +1,11 @@
 package debugger
 
 import (
-	"context"
-	"io"
-
 	"github.com/MontFerret/api/result"
 	"github.com/MontFerret/api/source"
 )
 
 type (
-	// Reason identifies why a debug execution stopped.
-	Reason string
-
 	// PointID identifies a debug point within one compiled program.
 	PointID int
 
@@ -76,36 +70,6 @@ type (
 		Location         source.Range   `json:"location"`
 		Depth            int            `json:"depth"`
 	}
-
-	Session interface {
-		io.Closer
-		Start(ctx context.Context) (*Event, error)
-		Continue(ctx context.Context) (*Event, error)
-		Step(ctx context.Context) (*Event, error)
-		Next(ctx context.Context) (*Event, error)
-		Out(ctx context.Context) (*Event, error)
-		Pause() error
-		SetBreakpoint(pos source.Location) (Breakpoint, error)
-		SetBreakpointAt(loc source.Location, opts BreakpointOptions) (Breakpoint, error)
-		DeleteBreakpoint(id BreakpointID) error
-		Breakpoints() []Breakpoint
-		Frames() ([]Frame, error)
-		Locals() ([]Variable, error)
-		FrameLocals(frame int) ([]Variable, error)
-		Variables(reference ValueReference) ([]Variable, error)
-		Evaluate(ctx context.Context, expression string) (Value, error)
-		EvaluateFrame(ctx context.Context, frame int, expression string) (Value, error)
-	}
-)
-
-const (
-	ReasonEntry        Reason = "entry"
-	ReasonBreakpoint   Reason = "breakpoint"
-	ReasonStep         Reason = "step"
-	ReasonPause        Reason = "pause"
-	ReasonRuntimeError Reason = "runtime-error"
-	ReasonCompleted    Reason = "completed"
-	ReasonTerminated   Reason = "terminated"
 )
 
 const (
@@ -115,27 +79,6 @@ const (
 	BreakpointBindExact
 	BreakpointBindNextExecutableInFunction
 )
-
-func ReasonFromString(s string) Reason {
-	switch s {
-	case "entry":
-		return ReasonEntry
-	case "breakpoint":
-		return ReasonBreakpoint
-	case "step":
-		return ReasonStep
-	case "pause":
-		return ReasonPause
-	case "runtime-error":
-		return ReasonRuntimeError
-	case "completed":
-		return ReasonCompleted
-	case "terminated":
-		return ReasonTerminated
-	default:
-		return ""
-	}
-}
 
 func BreakpointBindingModeFromString(s string) BreakpointBindingMode {
 	switch s {
