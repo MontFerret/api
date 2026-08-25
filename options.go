@@ -11,6 +11,7 @@ type (
 
 	SessionOptions interface {
 		SetParam(string, any) error
+		SetParams(map[string]any) error
 		SetOutputContentType(string) error
 	}
 
@@ -25,14 +26,10 @@ func WithOptimizationLevel(level OptimizationLevel) PlanOption {
 			OptimizationBasic,
 			OptimizationFull,
 			OptimizationAggressive:
-			if err := opts.SetOptimizationLevel(level); err != nil {
-				return fmt.Errorf("failed to set optimization level: %w", err)
-			}
+			return opts.SetOptimizationLevel(level)
 		default:
 			return fmt.Errorf("invalid optimization level: %d", level)
 		}
-
-		return nil
 	}
 }
 
@@ -47,23 +44,13 @@ func WithParam(key string, value any) SessionOption {
 // overriding existing keys while preserving any other previously defined parameters.
 func WithParams(params map[string]any) SessionOption {
 	return func(opts SessionOptions) error {
-		for k, v := range params {
-			if err := opts.SetParam(k, v); err != nil {
-				return fmt.Errorf("failed to set session param %q: %w", k, err)
-			}
-		}
-
-		return nil
+		return opts.SetParams(params)
 	}
 }
 
 // WithOutputContentType selects the output codec content type for session results.
 func WithOutputContentType(contentType string) SessionOption {
 	return func(opts SessionOptions) error {
-		if err := opts.SetOutputContentType(contentType); err != nil {
-			return fmt.Errorf("failed to set output content type: %w", err)
-		}
-
-		return nil
+		return opts.SetOutputContentType(contentType)
 	}
 }
