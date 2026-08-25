@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	"github.com/MontFerret/api/debugger"
