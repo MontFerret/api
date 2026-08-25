@@ -11,6 +11,6 @@ import (
 type Runtime interface {
 	io.Closer
 	Run(ctx context.Context, src source.File, opts ...SessionOption) (result.Output, error)
-	Compile(ctx context.Context, src source.File, opts ...PlanOptions) (Plan, error)
-	CompileDebug(ctx context.Context, src source.File, opts ...PlanOptions) (Plan, error)
+	Compile(ctx context.Context, src source.File, opts ...PlanOption) (Plan, error)
+	CompileDebug(ctx context.Context, src source.File, opts ...PlanOption) (Plan, error)
 }
