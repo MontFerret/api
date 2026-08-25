@@ -20,12 +20,16 @@ type (
 // WithOptimizationLevel sets the optimization level for the execution plan.
 func WithOptimizationLevel(level OptimizationLevel) PlanOption {
 	return func(opts PlanOptions) error {
-		if _, err := ParseOptimizationLevel(int(level)); err != nil {
-			return err
-		}
-
-		if err := opts.SetOptimizationLevel(level); err != nil {
-			return fmt.Errorf("failed to set optimization level: %w", err)
+		switch level {
+		case OptimizationNone,
+			OptimizationBasic,
+			OptimizationFull,
+			OptimizationAggressive:
+			if err := opts.SetOptimizationLevel(level); err != nil {
+				return fmt.Errorf("failed to set optimization level: %w", err)
+			}
+		default:
+			return fmt.Errorf("invalid optimization level: %d", level)
 		}
 
 		return nil
