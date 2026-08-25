@@ -54,12 +54,12 @@ type (
 	// executable location, when one exists.
 	Breakpoint struct {
 		Location          source.Range          `json:"location"`
-		RequestedPosition source.Location       `json:"requestedPosition"`
+		RequestedLocation source.Location       `json:"requestedLocation"`
 		ID                BreakpointID          `json:"id"`
 		PointID           PointID               `json:"pointID"`
 		FunctionID        FunctionID            `json:"functionID"`
 		BindingMode       BreakpointBindingMode `json:"bindingMode"`
-		Bound             bool
+		Bound             bool                  `json:"bound"`
 	}
 
 	// BreakpointOptions configures how a requested source location binds.
@@ -70,7 +70,7 @@ type (
 	// Event reports a debugger stop, completion, or termination.
 	Event struct {
 		Error            error          `json:"error"`
-		Output           result.Output  `json:"output"`
+		Output           *result.Output `json:"output"`
 		Reason           Reason         `json:"reason"`
 		HitBreakpointIDs []BreakpointID `json:"hitBreakpointIDs"`
 		Location         source.Range   `json:"location"`
