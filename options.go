@@ -7,7 +7,7 @@ type (
 		SetOptimizationLevel(OptimizationLevel) error
 	}
 
-	PlanOption func(PlanOptions) error
+	PlanOption = func(PlanOptions) error
 
 	SessionOptions interface {
 		SetParam(string, any) error
@@ -15,7 +15,7 @@ type (
 		SetOutputContentType(string) error
 	}
 
-	SessionOption func(SessionOptions) error
+	SessionOption = func(SessionOptions) error
 )
 
 // WithOptimizationLevel sets the optimization level for the execution plan.
