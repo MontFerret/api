@@ -1,5 +1,11 @@
 package api
 
-import "github.com/MontFerret/api/result"
+import (
+	"github.com/MontFerret/api/result"
+	"github.com/MontFerret/api/source"
+)
 
-type Output = result.Output
+type (
+	Source = source.Location
+	Output = result.Output
+)

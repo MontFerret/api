@@ -1,17 +1,17 @@
 package source
 
-type File struct {
+type Source struct {
 	Name    string `json:"name"`
 	Content string `json:"content"`
 }
 
-func New(name, content string) File {
-	return File{
+func New(name, content string) Source {
+	return Source{
 		Name:    name,
 		Content: content,
 	}
 }
 
-func NewAnonymous(content string) File {
+func NewAnonymous(content string) Source {
 	return New("anonymous", content)
 }
