@@ -1,8 +1,8 @@
 package api
 
 import (
+	"github.com/MontFerret/api/result"
 	"github.com/MontFerret/api/source"
-	"github.com/MontFerret/ferret/pkg/encoding"
 )
 
 type (
@@ -22,7 +22,7 @@ type (
 	Range = source.Range
 
 	// Output is the encoded result returned from session or engine execution.
-	Output = encoding.Output
+	Output = result.Output
 )
 
 // NewSource creates a new Source instance with the given name and content.
