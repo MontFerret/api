@@ -73,22 +73,22 @@ type (
 )
 
 const (
-	// BreakpointBindNextExecutableInFile preserves the friendly legacy binding
-	// behavior and is the zero-value default.
-	BreakpointBindNextExecutableInFile BreakpointBindingMode = iota
+	// BreakpointBindNextExecutableInSource selects the next executable point in
+	// the named source and is the zero-value default.
+	BreakpointBindNextExecutableInSource BreakpointBindingMode = iota
 	BreakpointBindExact
 	BreakpointBindNextExecutableInFunction
 )
 
 func BreakpointBindingModeFromString(s string) BreakpointBindingMode {
 	switch s {
-	case "next-executable-in-file":
-		return BreakpointBindNextExecutableInFile
+	case "next-executable-in-source":
+		return BreakpointBindNextExecutableInSource
 	case "exact":
 		return BreakpointBindExact
 	case "next-executable-in-function":
 		return BreakpointBindNextExecutableInFunction
 	default:
-		return BreakpointBindNextExecutableInFile
+		return BreakpointBindNextExecutableInSource
 	}
 }

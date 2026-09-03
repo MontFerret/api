@@ -14,10 +14,11 @@ type (
 		End   int `json:"end"`
 	}
 
-	// Location adds the source file identity to a Position.
+	// Location adds the semantic source name to a Position. SourceName does not
+	// imply that the source is backed by a local filesystem path.
 	Location struct {
 		Position
-		File string `json:"file"`
+		SourceName string `json:"sourceName"`
 	}
 
 	// Range combines a source Location with its producer-defined Span.

@@ -12,8 +12,8 @@ import (
 func TestDiagnosticPreservesStructuredReportingDetails(t *testing.T) {
 	rng := source.Range{
 		Location: source.Location{
-			Position: source.Position{Line: 2, Column: 8},
-			File:     "query.fql",
+			Position:   source.Position{Line: 2, Column: 8},
+			SourceName: "query.fql",
 		},
 		Span: source.Span{Start: 19, End: 26},
 	}
@@ -70,8 +70,8 @@ func TestDiagnosticJSONRoundTripPreservesSourceRanges(t *testing.T) {
 			{
 				Range: source.Range{
 					Location: source.Location{
-						Position: source.Position{Line: 1, Column: 13},
-						File:     "compiler.fql",
+						Position:   source.Position{Line: 1, Column: 13},
+						SourceName: "compiler.fql",
 					},
 					Span: source.Span{Start: 12, End: 12},
 				},
@@ -81,8 +81,8 @@ func TestDiagnosticJSONRoundTripPreservesSourceRanges(t *testing.T) {
 			{
 				Range: source.Range{
 					Location: source.Location{
-						Position: source.Position{Line: 2, Column: 8},
-						File:     "compiler.fql",
+						Position:   source.Position{Line: 2, Column: 8},
+						SourceName: "compiler.fql",
 					},
 					Span: source.Span{Start: 20, End: 26},
 				},

@@ -11,9 +11,9 @@ type Session interface {
 	io.Closer
 	Start(ctx context.Context) (*Event, error)
 	Continue(ctx context.Context) (*Event, error)
-	Step(ctx context.Context) (*Event, error)
-	Next(ctx context.Context) (*Event, error)
-	Out(ctx context.Context) (*Event, error)
+	StepIn(ctx context.Context) (*Event, error)
+	StepOver(ctx context.Context) (*Event, error)
+	StepOut(ctx context.Context) (*Event, error)
 	Pause() error
 	SetBreakpoint(pos source.Location) (Breakpoint, error)
 	SetBreakpointAt(loc source.Location, opts BreakpointOptions) (Breakpoint, error)
