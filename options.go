@@ -13,6 +13,7 @@ type (
 		SetParam(string, any) error
 		SetParams(map[string]any) error
 		SetOutputContentType(string) error
+		SetFSRoot(string) error
 	}
 
 	SessionOption = func(SessionOptions) error
@@ -52,5 +53,14 @@ func WithParams(params map[string]any) SessionOption {
 func WithOutputContentType(contentType string) SessionOption {
 	return func(opts SessionOptions) error {
 		return opts.SetOutputContentType(contentType)
+	}
+}
+
+// WithFSRoot selects the rooted filesystem used by one execution session.
+// The runtime defines path validation and owns any filesystem resources created
+// for the session.
+func WithFSRoot(root string) SessionOption {
+	return func(opts SessionOptions) error {
+		return opts.SetFSRoot(root)
 	}
 }
