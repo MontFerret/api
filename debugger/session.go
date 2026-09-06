@@ -7,6 +7,13 @@ import (
 	"github.com/MontFerret/api/source"
 )
 
+// Session controls one retained execution. Start establishes its lifetime;
+// resume commands observe both that lifetime and their non-nil caller context.
+// Commands are serialized. Pause and Close may interrupt an active command.
+// Close terminates execution, waits for commands, and releases resources;
+// repeated closes return the same result. Inspection references expire on resume.
+// A command can return an event and an error, including available completion
+// output when subsequent cleanup fails. Context arguments must be non-nil.
 type Session interface {
 	io.Closer
 	Start(ctx context.Context) (*Event, error)

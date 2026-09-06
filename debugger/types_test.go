@@ -76,3 +76,14 @@ func TestBreakpointBindingModeUsesSourceTerminology(t *testing.T) {
 		t.Fatalf("default binding mode = %v", got)
 	}
 }
+
+func TestPortableIdentityConventions(t *testing.T) {
+	if debugger.NoFunction != -1 {
+		t.Fatal("unexpected top-level identity")
+	}
+	for _, value := range []debugger.ValueReference{-1, 0, 1, 42} {
+		if value.Valid() != (value > 0) {
+			t.Fatalf("reference %d validity", value)
+		}
+	}
+}

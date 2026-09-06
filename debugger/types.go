@@ -12,11 +12,8 @@ type (
 	// BreakpointID identifies a breakpoint within one debugger session.
 	BreakpointID int
 
+	// FunctionID identifies a callable function within one compiled program.
 	FunctionID int
-
-	// ValueReference identifies an expandable debugger value within one paused
-	// session state. References are invalidated when execution starts or resumes.
-	ValueReference int
 
 	// BreakpointBindingMode selects how a requested source location resolves to
 	// an executable debug point.
@@ -79,6 +76,9 @@ const (
 	BreakpointBindExact
 	BreakpointBindNextExecutableInFunction
 )
+
+// NoFunction identifies the top-level program body rather than a callable function.
+const NoFunction FunctionID = -1
 
 func BreakpointBindingModeFromString(s string) BreakpointBindingMode {
 	switch s {

@@ -9,6 +9,10 @@ type (
 
 	PlanOption = func(PlanOptions) error
 
+	// SessionOptions is implemented by the runtime's actual session option owner.
+	// Implementations apply non-nil options once in order, joining validation errors
+	// before acquiring resources. Later setters override earlier values; SetParams
+	// merges keys. Runtime-specific options reject incompatible targets.
 	SessionOptions interface {
 		SetParam(string, any) error
 		SetParams(map[string]any) error
