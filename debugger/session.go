@@ -11,7 +11,8 @@ import (
 // resume commands observe both that lifetime and their non-nil caller context.
 // Commands are serialized. Pause and Close may interrupt an active command.
 // Close terminates execution, waits for commands, and releases resources;
-// repeated closes return the same result. Inspection references expire on resume.
+// repeated closes retain the cleanup result without requiring identical
+// error-wrapper pointers. Inspection references expire on resume.
 // A command can return an event and an error, including available completion
 // output when subsequent cleanup fails. Context arguments must be non-nil.
 type Session interface {

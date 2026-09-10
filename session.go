@@ -8,8 +8,13 @@ import (
 // Session executes a compiled plan with per-session configuration. Run observes
 // its non-nil context and returns caller-owned encoded output. Unless documented
 // otherwise, callers serialize Run and settle it before Close. Close is
-// idempotent and retains its cleanup result.
+// idempotent and retains its cleanup result, without requiring identical
+// error-wrapper pointers.
 type Session interface {
 	io.Closer
-	Run(c context.Context) (Output, error)
+	// Run returns nil output with an error when no output was produced.
+	// A non-nil output with a nil error indicates success, including empty output.
+	// A non-nil output may accompany an error from cleanup or other processing;
+	// callers must inspect output independently of the error.
+	Run(c context.Context) (*Output, error)
 }

@@ -12,35 +12,81 @@ Syntax and compiler errors are immediate. Plans support repeated and concurrent
 sessions with independent parameters and filesystem configuration; `Params`
 returns a caller-owned snapshot.
 
-Callers close directly created sessions before plans, then close the runtime.
-Parents reject new children after closure begins and coordinate admitted
-construction with closure; they do not promise to close descendants. Close is
-idempotent and retains the completed cleanup result. Ordinary execution owners
-cancel and settle running work before closing the session. Debugger session
-closure terminates and settles active commands. `Runtime.Run` owns its temporary
-session and plan and returns execution and cleanup errors together, preserving
-available output. Output and inspection snapshots belong to their callers.
+Each object releases the resources it owns. Owning runtimes reject subsequent
+work according to their closed-state semantics. Borrowing adapters may document
+a no-op `Close` that leaves the adapter and underlying runtime usable; the
+underlying owner remains responsible for cleanup.
 
-Contexts must be non-nil. Already-canceled contexts are rejected before options,
-hooks, or acquisition. Implementations recheck cancellation before publishing
-resources and preserve `context.Canceled` and `context.DeadlineExceeded` through
-`errors.Is`. Synchronous native compilation checks cancellation between phases;
-it does not preempt the parser or detach compilation into a goroutine.
+Plan closure prevents subsequent session and debug-session creation. It does
+not implicitly close or cancel already-created sessions or debug sessions.
+Returned descendants remain responsible for their own lifecycle. Parent closure
+does not implicitly cancel caller-owned operations and need not wait for
+operations or constructors already started. Callers coordinate outstanding work
+and cleanup when descendants use parent-owned resources.
+
+Close is idempotent and retains the completed cleanup result, without requiring
+identical error-wrapper pointers. Ordinary execution owners cancel and settle
+running work before closing the session. Debugger session closure terminates
+and settles active commands. `Runtime.Run` owns its temporary session and plan
+and returns execution and cleanup errors together, preserving available output.
+Output and inspection snapshots belong to their callers.
+
+`Runtime.Run` and `Session.Run` return `(*Output, error)`. Output presence is
+independent of the error:
+
+| Output | Error | Meaning |
+| --- | --- | --- |
+| nil | non-nil | No output was produced. |
+| non-nil | nil | Execution succeeded, including empty output. |
+| non-nil | non-nil | Output was produced, but cleanup or other processing also failed. |
+
+A non-nil `&Output{}` is present output; the zero value is not an absence
+sentinel. Inspect output independently of the error:
+
+```go
+output, err := runtime.Run(ctx, api.NewAnonymousSource("RETURN 42"))
+if output != nil {
+    consume(output.ContentType, output.Content)
+}
+if err != nil {
+    return err
+}
+```
+
+The output fields and their serialized representation are unchanged. Transports
+preserve output presence through their own representations.
+
+Non-nil caller contexts control cancellation of `Run`, `Compile`,
+`CompileDebug`, `NewSession`, and `NewDebugSession`. Cancellation errors
+preserve `context.Canceled` and `context.DeadlineExceeded` through `errors.Is`.
+Implementations need not derive operation contexts to coordinate parent Close.
+They may use internal contexts for their own resources and may translate portable
+option callbacks before validating the operation context.
 
 ## Options
 
-Session options target the implementation's actual `SessionOptions` owner.
-Non-nil options run exactly once in order; their validation failures are joined
-before acquiring resources. Later options can override earlier values. Native
-extensions validate their target explicitly. No intermediate option replay is
-required.
+Session options target an implementation of `SessionOptions`, which may apply
+settings directly or queue implementation-specific options. Non-nil callbacks
+run exactly once in order, and their returned errors are joined. Later options
+can override earlier values; parameter maps merge. Runtime-specific extensions
+validate their target explicitly.
 
-`WithOptimizationLevel` configures one compilation. Native Ferret inherits the
-engine's level when omitted, supports explicit `OptimizationNone`,
-`OptimizationBasic`, and `OptimizationFull` without mutating shared compiler
-configuration, and rejects `OptimizationAggressive`. Debug compilation accepts
-omission or `OptimizationNone` only. Other implementations document their
-supported levels.
+Portable or application-level errors may be returned immediately by an option
+callback. Runtime-specific conversion and validation may be deferred until the
+setting is used. This includes host-parameter conversion, output codecs,
+filesystem-root construction, and runtime-specific capabilities. A nil setter
+error therefore does not certify runtime validity.
+
+Invalid settings must fail the operation no later than their relevant point of use.
+Implementations need not preflight all session configuration before compilation,
+resource acquisition, or execution. `Runtime.Run` may compile, create a session,
+then execute. Output codec availability may be validated during result encoding,
+after the query has run. Implementations document validation timing and when
+mutable inputs are converted or snapshotted.
+
+`WithOptimizationLevel` rejects values outside the portable enum during callback
+application. Each runtime defines which known optimization levels it supports
+and any restrictions for debug compilation.
 
 ## Portable data
 

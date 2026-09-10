@@ -21,7 +21,9 @@ type (
 	// Range represents a range of characters in a source file, including the location and span.
 	Range = source.Range
 
-	// Output is the encoded result returned from session or engine execution.
+	// Output is the encoded result returned from session or runtime execution.
+	// Execution returns a pointer: nil means no output was produced, while a
+	// non-nil pointer to a zero-valued Output still represents produced output.
 	Output = result.Output
 )
 
