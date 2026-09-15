@@ -38,7 +38,7 @@ func (sessionContract) DeleteBreakpoint(ctx context.Context, id debugger.Breakpo
 	return nil
 }
 
-func (sessionContract) Breakpoints(ctx context.Context) []debugger.Breakpoint { return nil }
+func (sessionContract) Breakpoints(context.Context) ([]debugger.Breakpoint, error) { return nil, nil }
 
 func (sessionContract) Frames(ctx context.Context) ([]debugger.Frame, error) { return nil, nil }
 

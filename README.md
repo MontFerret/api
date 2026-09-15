@@ -9,8 +9,9 @@ Implementations own engine configuration; consumers share `Runtime`, reusable
 
 `Runtime.Compile` and `CompileDebug` finish compilation before returning a plan.
 Syntax and compiler errors are immediate. Plans support repeated and concurrent
-sessions with independent parameters and filesystem configuration; `Params`
-returns a caller-owned snapshot.
+sessions with independent parameters and filesystem configuration.
+`Params() ([]string, error)` returns a caller-owned snapshot or a metadata
+retrieval error. It does not take a context.
 
 Each object releases the resources it owns. Owning runtimes reject subsequent
 work according to their closed-state semantics. Borrowing adapters may document
@@ -109,7 +110,16 @@ an empty request slice clears it. Each `BreakpointRequest` contains a position a
 binding options. Results preserve request order and distinguish unbound locations
 from operation failure. Failure before publication leaves the prior set intact.
 A stop already decided before removal remains inspectable with its original hit
-IDs. Incremental add/delete methods remain available.
+IDs. Incremental add/delete methods remain available and observe their request
+context through publication; canceling a breakpoint request does not cancel the
+debuggee. All debugger methods except Close take a non-nil context, including
+Pause, breakpoint listing, and inspection. Inspection checks cancellation before
+and after command admission; cancellation need not interrupt the admission wait.
+A canceled pause request must not request a stop.
+
+`Breakpoints(ctx) ([]Breakpoint, error)` returns a detached, ID-ordered snapshot,
+including after Close. Nil and canceled contexts return errors. Metadata and
+listing errors can be reported without conflating failure with an empty result.
 
 A completed event and its output can accompany a later cleanup error. Error projections should preserve each
 diagnostic's source, annotation order, joined branches, and native causes through

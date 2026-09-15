@@ -16,6 +16,11 @@ import (
 // error-wrapper pointers. Inspection references expire on resume.
 // A command can return an event and an error, including available completion
 // output when subsequent cleanup fails. Context arguments must be non-nil.
+// Inspection checks cancellation before and after command admission; cancellation
+// need not interrupt the admission wait. A canceled Pause must not request a stop.
+// Breakpoint mutations observe their request context through publication; canceling
+// a request does not cancel the execution. Cancellation observed before publication
+// aborts the mutation; cancellation after publication does not undo success.
 type Session interface {
 	io.Closer
 	Start(ctx context.Context) (*Event, error)
@@ -46,7 +51,10 @@ type Session interface {
 	SetBreakpoint(ctx context.Context, pos source.Location) (Breakpoint, error)
 	SetBreakpointAt(ctx context.Context, loc source.Location, opts BreakpointOptions) (Breakpoint, error)
 	DeleteBreakpoint(ctx context.Context, id BreakpointID) error
-	Breakpoints(ctx context.Context) []Breakpoint
+
+	// Breakpoints returns a detached, ID-ordered snapshot, including after Close.
+	// Nil or canceled contexts return an error.
+	Breakpoints(ctx context.Context) ([]Breakpoint, error)
 	Frames(ctx context.Context) ([]Frame, error)
 	Locals(ctx context.Context) ([]Variable, error)
 	FrameLocals(ctx context.Context, frame int) ([]Variable, error)

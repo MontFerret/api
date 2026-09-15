@@ -10,7 +10,7 @@ import (
 type (
 	// Plan represents a compiled program. Compilation finishes before a plan is
 	// returned. Plans support independent sessions and are not consumed by execution.
-	// Params returns a caller-owned snapshot.
+	// Params returns a caller-owned snapshot or an error if metadata cannot be retrieved.
 	//
 	// Close releases plan-owned resources and prevents subsequent session and
 	// debug-session creation. It is idempotent and retains its cleanup result,
@@ -23,7 +23,7 @@ type (
 	// when sessions use plan-owned resources.
 	Plan interface {
 		io.Closer
-		Params() []string
+		Params() ([]string, error)
 		NewSession(ctx context.Context, opts ...SessionOption) (Session, error)
 		NewDebugSession(ctx context.Context, opts ...SessionOption) (debugger.Session, error)
 	}
