@@ -23,7 +23,7 @@ type Session interface {
 	StepIn(ctx context.Context) (*Event, error)
 	StepOver(ctx context.Context) (*Event, error)
 	StepOut(ctx context.Context) (*Event, error)
-	Pause() error
+	Pause(ctx context.Context) error
 
 	// ReplaceBreakpoints atomically replaces one source's complete requested set,
 	// before execution, while paused, or while running. Empty requests clear it;
@@ -43,14 +43,14 @@ type Session interface {
 	// Concurrent writers are serialized in admission order. Callers requiring
 	// request order must await each result before issuing the next replacement.
 	ReplaceBreakpoints(ctx context.Context, sourceName string, requests []BreakpointRequest) ([]Breakpoint, error)
-	SetBreakpoint(pos source.Location) (Breakpoint, error)
-	SetBreakpointAt(loc source.Location, opts BreakpointOptions) (Breakpoint, error)
-	DeleteBreakpoint(id BreakpointID) error
-	Breakpoints() []Breakpoint
-	Frames() ([]Frame, error)
-	Locals() ([]Variable, error)
-	FrameLocals(frame int) ([]Variable, error)
-	Variables(reference ValueReference) ([]Variable, error)
+	SetBreakpoint(ctx context.Context, pos source.Location) (Breakpoint, error)
+	SetBreakpointAt(ctx context.Context, loc source.Location, opts BreakpointOptions) (Breakpoint, error)
+	DeleteBreakpoint(ctx context.Context, id BreakpointID) error
+	Breakpoints(ctx context.Context) []Breakpoint
+	Frames(ctx context.Context) ([]Frame, error)
+	Locals(ctx context.Context) ([]Variable, error)
+	FrameLocals(ctx context.Context, frame int) ([]Variable, error)
+	Variables(ctx context.Context, reference ValueReference) ([]Variable, error)
 	Evaluate(ctx context.Context, expression string) (Value, error)
 	EvaluateFrame(ctx context.Context, frame int, expression string) (Value, error)
 }

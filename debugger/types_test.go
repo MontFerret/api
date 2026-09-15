@@ -20,39 +20,43 @@ func (sessionContract) StepOver(context.Context) (*debugger.Event, error) { retu
 
 func (sessionContract) StepOut(context.Context) (*debugger.Event, error) { return nil, nil }
 
-func (sessionContract) Pause() error { return nil }
+func (sessionContract) Pause(ctx context.Context) error { return nil }
 
 func (sessionContract) ReplaceBreakpoints(context.Context, string, []debugger.BreakpointRequest) ([]debugger.Breakpoint, error) {
 	return nil, nil
 }
 
-func (sessionContract) SetBreakpoint(source.Location) (debugger.Breakpoint, error) {
+func (sessionContract) SetBreakpoint(ctx context.Context, loc source.Location) (debugger.Breakpoint, error) {
 	return debugger.Breakpoint{}, nil
 }
 
-func (sessionContract) SetBreakpointAt(source.Location, debugger.BreakpointOptions) (debugger.Breakpoint, error) {
+func (sessionContract) SetBreakpointAt(ctx context.Context, loc source.Location, opts debugger.BreakpointOptions) (debugger.Breakpoint, error) {
 	return debugger.Breakpoint{}, nil
 }
 
-func (sessionContract) DeleteBreakpoint(debugger.BreakpointID) error { return nil }
+func (sessionContract) DeleteBreakpoint(ctx context.Context, id debugger.BreakpointID) error {
+	return nil
+}
 
-func (sessionContract) Breakpoints() []debugger.Breakpoint { return nil }
+func (sessionContract) Breakpoints(ctx context.Context) []debugger.Breakpoint { return nil }
 
-func (sessionContract) Frames() ([]debugger.Frame, error) { return nil, nil }
+func (sessionContract) Frames(ctx context.Context) ([]debugger.Frame, error) { return nil, nil }
 
-func (sessionContract) Locals() ([]debugger.Variable, error) { return nil, nil }
+func (sessionContract) Locals(ctx context.Context) ([]debugger.Variable, error) { return nil, nil }
 
-func (sessionContract) FrameLocals(int) ([]debugger.Variable, error) { return nil, nil }
-
-func (sessionContract) Variables(debugger.ValueReference) ([]debugger.Variable, error) {
+func (sessionContract) FrameLocals(ctx context.Context, frame int) ([]debugger.Variable, error) {
 	return nil, nil
 }
 
-func (sessionContract) Evaluate(context.Context, string) (debugger.Value, error) {
+func (sessionContract) Variables(ctx context.Context, reference debugger.ValueReference) ([]debugger.Variable, error) {
+	return nil, nil
+}
+
+func (sessionContract) Evaluate(ctx context.Context, expression string) (debugger.Value, error) {
 	return debugger.Value{}, nil
 }
 
-func (sessionContract) EvaluateFrame(context.Context, int, string) (debugger.Value, error) {
+func (sessionContract) EvaluateFrame(ctx context.Context, frame int, expression string) (debugger.Value, error) {
 	return debugger.Value{}, nil
 }
 
