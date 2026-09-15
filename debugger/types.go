@@ -53,6 +53,13 @@ type (
 		Bound             bool                  `json:"bound"`
 	}
 
+	// BreakpointRequest specifies one position and its binding policy within a
+	// source-wide replacement. Source identity belongs to ReplaceBreakpoints.
+	BreakpointRequest struct {
+		Position source.Position   `json:"position"`
+		Options  BreakpointOptions `json:"options"`
+	}
+
 	// BreakpointOptions configures how a requested source location binds.
 	BreakpointOptions struct {
 		BindingMode BreakpointBindingMode `json:"bindingMode"`

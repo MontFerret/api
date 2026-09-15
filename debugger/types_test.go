@@ -22,6 +22,10 @@ func (sessionContract) StepOut(context.Context) (*debugger.Event, error) { retur
 
 func (sessionContract) Pause() error { return nil }
 
+func (sessionContract) ReplaceBreakpoints(context.Context, string, []debugger.BreakpointRequest) ([]debugger.Breakpoint, error) {
+	return nil, nil
+}
+
 func (sessionContract) SetBreakpoint(source.Location) (debugger.Breakpoint, error) {
 	return debugger.Breakpoint{}, nil
 }
@@ -85,5 +89,16 @@ func TestPortableIdentityConventions(t *testing.T) {
 		if value.Valid() != (value > 0) {
 			t.Fatalf("reference %d validity", value)
 		}
+	}
+}
+
+func TestDebuggerSessionRequiresSourceReplacement(t *testing.T) {
+	var session debugger.Session = sessionContract{}
+	requests := []debugger.BreakpointRequest{{
+		Position: source.Position{Line: 1},
+		Options:  debugger.BreakpointOptions{BindingMode: debugger.BreakpointBindExact},
+	}}
+	if _, err := session.ReplaceBreakpoints(t.Context(), "buffer://query", requests); err != nil {
+		t.Fatal(err)
 	}
 }

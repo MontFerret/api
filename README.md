@@ -103,7 +103,14 @@ identifies the top-level program body. Compiler table identifiers and validation
 remain implementation details.
 
 Debugger commands are `StepIn`, `StepOver`, and `StepOut`. Breakpoint requests use
-canonical source locations and binding options. A completed event and its output
-can accompany a later cleanup error. Error projections should preserve each
+canonical source locations and binding options. `ReplaceBreakpoints(ctx, sourceName,
+requests)` replaces a source's complete set atomically, including during execution;
+an empty request slice clears it. Each `BreakpointRequest` contains a position and
+binding options. Results preserve request order and distinguish unbound locations
+from operation failure. Failure before publication leaves the prior set intact.
+A stop already decided before removal remains inspectable with its original hit
+IDs. Incremental add/delete methods remain available.
+
+A completed event and its output can accompany a later cleanup error. Error projections should preserve each
 diagnostic's source, annotation order, joined branches, and native causes through
 standard Go error traversal.
