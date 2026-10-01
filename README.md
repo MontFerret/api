@@ -10,8 +10,21 @@ Implementations own engine configuration; consumers share `Runtime`, reusable
 `Runtime.Compile` and `CompileDebug` finish compilation before returning a plan.
 Syntax and compiler errors are immediate. Plans support repeated and concurrent
 sessions with independent parameters and filesystem configuration.
-`Params() ([]string, error)` returns a caller-owned snapshot or a metadata
-retrieval error. It does not take a context.
+`Plan.Params(ctx) ([]string, error)` returns a caller-owned snapshot of parameter
+names or a metadata retrieval error. An empty list with a nil error means the plan
+has no parameters; it is distinct from a retrieval failure.
+
+`Runtime.Version(ctx) (Version, error)` reports the version of the runtime
+implementation represented by that `Runtime`. A remote adapter reports the remote
+runtime's version. This is separate from the embedding application's, CLI's,
+daemon/server's, or transport protocol's version. `Version` is an opaque string-backed
+value whose `String()` method preserves the implementation-provided value unchanged.
+Values such as `v2.0.0-alpha.55`, `2.0.0`, `dev`, and `unknown` are valid; UAPI does
+not parse, normalize, or validate them as semantic versions.
+
+Both metadata operations may fail and may require remote I/O. Local implementations
+may return immediately. UAPI imposes no transport-specific behavior or caching
+requirements.
 
 Each object releases the resources it owns. Owning runtimes reject subsequent
 work according to their closed-state semantics. Borrowing adapters may document
@@ -58,7 +71,8 @@ The output fields and their serialized representation are unchanged. Transports
 preserve output presence through their own representations.
 
 Non-nil caller contexts control cancellation of `Run`, `Compile`,
-`CompileDebug`, `NewSession`, and `NewDebugSession`. Cancellation errors
+`CompileDebug`, `NewSession`, `NewDebugSession`, `Plan.Params`, and `Runtime.Version`.
+All of these operations require a non-nil context. Cancellation errors
 preserve `context.Canceled` and `context.DeadlineExceeded` through `errors.Is`.
 Implementations need not derive operation contexts to coordinate parent Close.
 They may use internal contexts for their own resources and may translate portable

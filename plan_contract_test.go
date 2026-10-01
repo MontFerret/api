@@ -1,6 +1,10 @@
 package api_test
 
-import "github.com/MontFerret/api"
+import (
+	"context"
 
-// Metadata retrieval can fail without adding a context to Plan.Params.
-var _ func(api.Plan) ([]string, error) = api.Plan.Params
+	"github.com/MontFerret/api"
+)
+
+// Parameter metadata retrieval is fallible and context-aware.
+var _ func(api.Plan, context.Context) ([]string, error) = api.Plan.Params
