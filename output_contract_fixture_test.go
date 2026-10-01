@@ -23,6 +23,10 @@ var (
 	_ api.Session = (*outputSession)(nil)
 )
 
+func (r *outputRuntime) Version(context.Context) (api.Version, error) {
+	return api.Version(""), nil
+}
+
 func (r *outputRuntime) Run(context.Context, api.Source, ...api.SessionOption) (*api.Output, error) {
 	return r.output, r.err
 }
