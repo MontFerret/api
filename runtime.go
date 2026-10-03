@@ -17,8 +17,10 @@ import (
 //
 // Run, Compile, CompileDebug, and Version use non-nil caller contexts for cancellation.
 // Callers coordinate work and cleanup when descendants use parent-owned
-// resources. Run closes its temporary session and plan, preserving execution
-// and cleanup errors together with any available encoded output.
+// resources. Run owns its temporary session and plan; resources needed for
+// consumption transfer to the returned Output, which finalizes them. Resources
+// independent of consumption may be released earlier. Caller-owned descendants
+// and borrowed parents retain their existing ownership.
 type Runtime interface {
 	io.Closer
 
@@ -32,11 +34,23 @@ type Runtime interface {
 	// no transport-specific behavior or caching requirements.
 	Version(ctx context.Context) (Version, error)
 
-	// Run returns nil output with an error when no output was produced.
-	// A non-nil output with a nil error indicates success, including empty output.
-	// A non-nil output may accompany an error from cleanup or other processing;
-	// callers must inspect output independently of the error.
-	Run(ctx context.Context, src Source, opts ...SessionOption) (*Output, error)
+	// Run starts execution and returns a usable, caller-owned Output with nil
+	// error. Success means a handle was obtained, not that execution or delivery
+	// completed. Execution is not deferred until consumption. Metadata is reliable
+	// before return without buffering solely to determine length.
+	//
+	// Admission or preparation failures return nil output and an error, preserving
+	// cleanup failures for resources already acquired. Never return a usable handle
+	// alongside a Run error or use a typed-nil implementation as an absent handle.
+	// Once a handle is returned, terminal execution, encoding, delivery, and
+	// output-owned cleanup errors are reported by Consume or Collect, preserving
+	// available content. Even absent content is observed through a usable handle.
+	//
+	// ctx must be non-nil and bounds the output's lifetime after return. Callers
+	// must not cancel it before settling the output. Consume or Collect finalizes
+	// resources; Close abandons unread output without certifying completion.
+	// Side-effect-only callers must consume to observe completion. See Output.
+	Run(ctx context.Context, src Source, opts ...SessionOption) (Output, error)
 	Compile(ctx context.Context, src Source, opts ...PlanOption) (Plan, error)
 	CompileDebug(ctx context.Context, src Source, opts ...PlanOption) (Plan, error)
 }

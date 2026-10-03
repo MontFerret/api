@@ -16,7 +16,7 @@ type (
 	//
 	// Invalid settings must fail the operation no later than their relevant point of use.
 	// Validation need not precede compilation, resource acquisition, or all query
-	// execution. Output codec availability may be checked during result encoding,
+	// execution. Content codec availability may be checked during result encoding,
 	// after the query has run. Implementations document validation and mutable-input
 	// conversion or snapshot timing.
 	//
@@ -25,7 +25,12 @@ type (
 	SessionOptions interface {
 		SetParam(string, any) error
 		SetParams(map[string]any) error
+
+		// SetOutputContentType selects the encoded representation's media type,
+		// reported by Output.Metadata().ContentType. Codec availability may be
+		// validated during encoding and then reported through output consumption.
 		SetOutputContentType(string) error
+
 		SetFSRoot(string) error
 	}
 
@@ -72,6 +77,8 @@ func WithParams(params map[string]any) SessionOption {
 
 // WithOutputContentType selects the output codec content type for session results.
 // Codec availability may be checked when output is encoded, after query execution.
+// The selected representation is described by Output.Metadata().ContentType;
+// encoding failures after a usable handle is returned belong to Consume or Collect.
 func WithOutputContentType(contentType string) SessionOption {
 	return func(opts SessionOptions) error {
 		return opts.SetOutputContentType(contentType)

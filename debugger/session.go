@@ -15,7 +15,9 @@ import (
 // repeated closes retain the cleanup result without requiring identical
 // error-wrapper pointers. Inspection references expire on resume.
 // A command can return an event and an error, including available completion
-// output when subsequent cleanup fails. Context arguments must be non-nil.
+// content when subsequent cleanup fails. Event.Output holds detached materialized
+// Content that remains readable after cleanup; inspecting a retained event never
+// consumes a live output handle. Context arguments must be non-nil.
 // Inspection checks cancellation before and after command admission; cancellation
 // need not interrupt the admission wait. A canceled Pause must not request a stop.
 // Breakpoint mutations observe their request context through publication; canceling
