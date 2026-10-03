@@ -66,13 +66,21 @@ type (
 	}
 
 	// Event reports a debugger stop, completion, or termination.
+	// Retained data is materialized; reading an event does not consume another
+	// observer's output. Available completion content may accompany an error.
 	Event struct {
-		Error            error          `json:"error"`
-		Output           *result.Output `json:"output"`
-		Reason           Reason         `json:"reason"`
-		HitBreakpointIDs []BreakpointID `json:"hitBreakpointIDs"`
-		Location         source.Range   `json:"location"`
-		Depth            int            `json:"depth"`
+		Error error `json:"error"`
+
+		// Output is detached encoded content, not a live consumable handle.
+		// Nil means absent; a non-nil pointer means present, including empty data.
+		// Retained snapshots must remain valid after debugger cleanup and must
+		// not share mutable implementation buffers. Recipients coordinate any
+		// mutation of shared Content themselves.
+		Output           *result.Content `json:"output"`
+		Reason           Reason          `json:"reason"`
+		HitBreakpointIDs []BreakpointID  `json:"hitBreakpointIDs"`
+		Location         source.Range    `json:"location"`
+		Depth            int             `json:"depth"`
 	}
 )
 

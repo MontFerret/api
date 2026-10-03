@@ -40,42 +40,194 @@ and cleanup when descendants use parent-owned resources.
 
 Close is idempotent and retains the completed cleanup result, without requiring
 identical error-wrapper pointers. Ordinary execution owners cancel and settle
-running work before closing the session. Debugger session closure terminates
-and settles active commands. `Runtime.Run` owns its temporary session and plan
-and returns execution and cleanup errors together, preserving available output.
-Output and inspection snapshots belong to their callers.
+running work and its output before reusing or closing the session, unless the
+implementation explicitly supports a stronger contract. Debugger session closure
+terminates and settles active commands.
 
-`Runtime.Run` and `Session.Run` return `(*Output, error)`. Output presence is
-independent of the error:
+`Runtime.Run` and `Session.Run` return `(Output, error)`. A successful `Run` obtains
+a usable, caller-owned handle; it does not certify execution or delivery success.
+Execution starts before the handle is returned and is not deferred until consumption.
+Admission/preparation failures return a nil handle and an error, preserving cleanup
+failures for resources acquired before failure. Implementations must not return a
+usable handle alongside a `Run` error, a typed-nil handle, or `(nil, nil)`.
 
-| Output | Error | Meaning |
+Once a usable handle is returned, terminal execution, encoding, delivery, and
+output-owned cleanup errors are reported through `Consume` or `Collect`. The handle
+is usable even when no content is ultimately available. Callers running scripts only
+for side effects must still consume output to observe completion. `Close` is abandonment;
+its success does not certify successful execution.
+
+`Runtime.Run` owns its temporary session and plan. Resources still needed by output
+transfer to that output and are finalized by consumption or closure. Resources already
+independent of consumption may be released earlier. `Session.Run` output never closes
+the caller-owned session. These rules do not introduce cascading parent closure.
+
+## Consumable output
+
+The `result` package defines `Output`, `Content`, `Metadata`, and `Consumer`, also
+exported as root `api` aliases:
+
+```text
+Runtime.Run / Session.Run -> Output
+                              Consume: receive borrowed encoded chunks
+                              Collect: obtain detached *Content
+                              Close: abandon and release owned resources
+```
+
+`Output.Metadata()` returns immutable, local metadata without I/O, including during
+consumption and after closure. `Run` establishes it before exposing the handle without
+waiting for or buffering the complete payload solely to determine length. `ContentType`
+identifies the encoded representation. When `LengthKnown` is true, `Length` is the
+nonnegative, exact total encoded payload byte count, not records, transport frames,
+remaining bytes, or progress. Unknown length is normal. Known zero length does not
+establish presence, and advertised length must not require unrestricted preallocation.
+
+`Consume` and `Collect` are alternative one-shot terminal operations. Admission validates
+a non-nil context, then a non-nil consumer for `Consume`, then already-canceled consumption
+and invocation contexts, before atomically claiming the handle. Invalid or rejected calls
+do not claim it or disrupt another consumer. A rejected consumption context may be retried
+within the invocation's lifetime. Once admitted, an operation cannot be resumed or
+repeated; failure or cancellation finalizes its owned resources before return.
+
+Valid competing consumption calls match `result.ErrInUse` while delivery is active and
+stopping has not begun. After closure or finalization begins, new valid calls match
+`result.ErrClosed`. Root convenience exports `api.ErrOutputInUse` and `api.ErrOutputClosed`
+reference those same sentinel values. Use `errors.Is`; wrappers and joined failures are
+allowed. There is no separate consumed or finalized error.
+
+`Close` abandons unread output without silently draining arbitrarily large payloads.
+During active consumption it requests cancellation and waits for the callback and cleanup.
+If explicit closure wins before the terminal outcome is committed, the active operation
+matches `ErrClosed`, preserving other observed failures. Closure after commitment waits
+for cleanup without changing that outcome. Automatic finalization does not add `ErrClosed`
+to the original result; caller-context cancellation retains its context error. Repeated
+or concurrent `Close` calls return the recorded cleanup outcome, usually nil, rather than
+a lifecycle error simply because the output was already closed.
+
+Callbacks are synchronous, ordered, and non-overlapping. No callback remains active or
+is invoked after `Consume` returns. Chunks are borrowed, read-only byte slices valid only
+during the callback; copy retained bytes. Boundaries need not align with JSON values,
+lines, records, or characters. Empty chunks are not EOF. A callback error stops further
+delivery and initiates finalization. Panic unwinding also finalizes resources without
+swallowing the panic; cleanup failures remain available through `Close`.
+
+Metadata reads are safe concurrently and from callbacks. Reentrant consumption is
+rejected under the same admission rules. A callback must not call `Close` synchronously
+on its own output because `Close` waits for that callback. Cancellation cannot forcibly
+interrupt arbitrary callback code or release borrowed buffers still in use.
+
+The invocation context bounds the output's lifetime after `Run` returns. A consumption
+context may shorten that lifetime, not extend or revive it. The effective context passed
+to callbacks observes cancellation from either context and their earliest deadline.
+Keep any locally created invocation context alive until output is settled; do not defer
+its cancellation in a helper that returns a live handle.
+
+### Content presence and errors
+
+`Content` is detached, recipient-owned data that survives output closure. Inspect available
+content independently of the collection error:
+
+| Situation | `Collect` | `Consume` |
 | --- | --- | --- |
-| nil | non-nil | No output was produced. |
-| non-nil | nil | Execution succeeded, including empty output. |
-| non-nil | non-nil | Output was produced, but cleanup or other processing also failed. |
+| Absent content | nil content | No callback |
+| Present empty content | Non-nil `*Content`, even with nil `Data` | At least one empty chunk |
+| Available content plus terminal error | Content and error together | Delivered bytes and terminal error |
+| Failure after receiving a prefix | Prefix and error together | Delivered prefix and error |
 
-A non-nil `&Output{}` is present output; the zero value is not an absence
-sentinel. Inspect output independently of the error:
+Neither zero length, nil `Data`, nor empty content type is an absence sentinel.
+`Content.Metadata` preserves the complete-payload descriptor even after partial failure;
+`len(Content.Data)` counts bytes actually collected. An otherwise complete delivery or
+collection that mismatches a known length must return an error. Joined errors preserve
+execution, consumer, and cleanup causes through standard Go error traversal.
+
+Consumable delivery permits bounded buffers and reuse without requiring incremental
+query evaluation or native encoding. A buffered adapter may transfer suitable detached
+owned bytes directly from `Collect`; a generic chunk accumulator or another copy is not
+required. Detached content must not alias borrowed or reusable implementation buffers.
+
+### Collecting
+
+This helper returns available content even when collection fails. Fallback closure also
+preserves cleanup failures; `Close` is idempotent after collection. These examples use
+only the portable API and have compiling counterparts in `output_example_test.go`.
 
 ```go
-output, err := runtime.Run(ctx, api.NewAnonymousSource("RETURN 42"))
-if output != nil {
-    consume(output.ContentType, output.Content)
+package example
+
+import (
+    "context"
+    "errors"
+    "fmt"
+
+    "github.com/MontFerret/api"
+)
+
+func collectQuery(ctx context.Context, runtime api.Runtime, src api.Source) (content *api.Content, err error) {
+    output, err := runtime.Run(ctx, src)
+    if err != nil {
+        return nil, err
+    }
+    defer func() { err = errors.Join(err, output.Close()) }()
+    return output.Collect(ctx)
 }
-if err != nil {
+
+func inspectQuery(ctx context.Context, runtime api.Runtime, src api.Source) error {
+    content, err := collectQuery(ctx, runtime, src)
+    if content != nil {
+        fmt.Printf("%s: %q\n", content.Metadata.ContentType, content.Data)
+    }
     return err
 }
 ```
 
-The output fields and their serialized representation are unchanged. Transports
-preserve output presence through their own representations.
+### Forwarding chunks
+
+The destination handles each borrowed chunk synchronously. Destination errors stop
+delivery; a short write without an error becomes `io.ErrShortWrite`. This helper retains
+no payload. A destination may choose to buffer it, write a file, or forward it elsewhere.
+
+```go
+package example
+
+import (
+    "context"
+    "errors"
+    "io"
+
+    "github.com/MontFerret/api"
+)
+
+func streamQuery(ctx context.Context, runtime api.Runtime, src api.Source, dst io.Writer) (err error) {
+    output, err := runtime.Run(ctx, src)
+    if err != nil {
+        return err
+    }
+    defer func() { err = errors.Join(err, output.Close()) }()
+    return output.Consume(ctx, func(ctx context.Context, chunk []byte) error {
+        if err := ctx.Err(); err != nil {
+            return err
+        }
+        n, err := dst.Write(chunk)
+        if err != nil {
+            return err
+        }
+        if n != len(chunk) {
+            return io.ErrShortWrite
+        }
+        return nil
+    })
+}
+```
+
+For side-effect-only execution, consume with a callback that returns nil without
+retaining bytes. Observe the consumption error; merely closing the handle abandons it.
 
 Non-nil caller contexts control cancellation of `Run`, `Compile`,
 `CompileDebug`, `NewSession`, `NewDebugSession`, `Plan.Params`, and `Runtime.Version`.
 All of these operations require a non-nil context. Cancellation errors
 preserve `context.Canceled` and `context.DeadlineExceeded` through `errors.Is`.
-Implementations need not derive operation contexts to coordinate parent Close.
-They may use internal contexts for their own resources and may translate portable
+Parent Close does not require deriving operation contexts to coordinate descendants.
+Implementations may use internal contexts for their own resources and may translate portable
 option callbacks before validating the operation context.
 
 ## Options
@@ -98,6 +250,9 @@ resource acquisition, or execution. `Runtime.Run` may compile, create a session,
 then execute. Output codec availability may be validated during result encoding,
 after the query has run. Implementations document validation timing and when
 mutable inputs are converted or snapshotted.
+`WithOutputContentType` and `SetOutputContentType` retain their names. The selected
+representation is reported by `Output.Metadata().ContentType`; encoding failures after
+a usable handle is returned are observed through `Consume` or `Collect`.
 
 `WithOptimizationLevel` rejects values outside the portable enum during callback
 application. Each runtime defines which known optimization levels it supports
@@ -108,9 +263,10 @@ and any restrictions for debug compilation.
 Native Ferret produces one-based lines and byte columns, with zero-based,
 half-open byte spans. Source names are identities and need not be filesystem
 paths; anonymous sources have an empty name. Adapters translate native indexed
-source text into the portable `Source` representation. Portable coordinates,
-encoded output, debugger values, variables, frames, breakpoints, reasons, and
-events preserve their existing fields and JSON representations.
+source text into the portable `Source` representation. Portable coordinates, debugger
+values, variables, frames, breakpoints, and reasons retain their existing representations.
+Encoded content uses the new nested metadata shape described below. Debugger events
+retain their field names, including `output`, whose value is materialized `*Content`.
 
 `debugger.ValueReference.Valid` accepts positive references. References are scoped
 to a paused state and become stale when execution resumes. `debugger.NoFunction`
@@ -135,6 +291,38 @@ A canceled pause request must not request a stop.
 including after Close. Nil and canceled contexts return errors. Metadata and
 listing errors can be reported without conflating failure with an empty result.
 
-A completed event and its output can accompany a later cleanup error. Error projections should preserve each
-diagnostic's source, annotation order, joined branches, and native causes through
-standard Go error traversal.
+A completed event and its detached content can accompany a later cleanup error.
+Retained events and snapshots must not store live output handles or mutable implementation
+buffers; their bytes remain readable after debugger cleanup. Inspecting one observer's
+event cannot consume another observer's data. Recipients coordinate mutations of shared
+materialized content themselves. Error projections should preserve each diagnostic's
+source, annotation order, joined branches, and native causes through standard Go error
+traversal.
+`Event.Error` remains a Go error; this change defines no portable JSON error codec.
+Adapters continue to own serialized error projections.
+
+## Migration from materialized output
+
+This is an intentional breaking change to both the Go API and encoded-content JSON:
+
+| Previous API | Current API |
+| --- | --- |
+| Materialized `result.Output` / `api.Output` struct | Detached `result.Content` / `api.Content` struct |
+| `Run(...) (*Output, error)` | `Run(...) (Output, error)`, followed by `Consume` or `Collect` |
+| `output.ContentType` | `output.Metadata().ContentType` or `content.Metadata.ContentType` |
+| Materialized payload field `Content` | `Content.Data` |
+| Flat `contentType` and `content` JSON keys | Nested `metadata` object and `data` key |
+| Execution/cleanup result observed at `Run` return | Handle admission at `Run`; terminal result through consumption |
+| Debugger event `Output` containing old output struct | Same field/key containing detached `*Content` |
+
+For example, populated materialized content serializes as:
+
+```json
+{"metadata":{"contentType":"application/json","length":2,"lengthKnown":true},"data":"NDI="}
+```
+
+Payload bytes use standard base64 byte-slice encoding; they are not interpreted as a
+JSON document. A nil `*Content` serializes as `null`. A present content object with nil
+`Data` has `"data":null`; a non-nil empty byte slice has `"data":""`. All descriptor fields
+remain present, including unknown length. Old JSON keys are not emitted. Live output
+handles must not be serialized, and marshaling must never consume them.
