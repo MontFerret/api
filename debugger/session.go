@@ -13,7 +13,7 @@ import (
 // run concurrently with execution. Pause and Close may interrupt an active command.
 // Close terminates execution, waits for commands, and releases resources;
 // repeated closes retain the cleanup result without requiring identical
-// error-wrapper pointers. Inspection references expire on resume.
+// error-wrapper pointers. Inspection references expire on resume or termination.
 // A command can return an event and an error, including available completion
 // content when subsequent cleanup fails. Event.Output holds detached materialized
 // Content that remains readable after cleanup; inspecting a retained event never
@@ -58,9 +58,42 @@ type Session interface {
 	// Nil or canceled contexts return an error.
 	Breakpoints(ctx context.Context) ([]Breakpoint, error)
 	Frames(ctx context.Context) ([]Frame, error)
+
+	// Locals is equivalent to FrameLocals(ctx, 0), including the references
+	// returned for expandable bindings.
 	Locals(ctx context.Context) ([]Variable, error)
+
+	// FrameLocals lists a frame's visible bindings. Within one stop, repeated
+	// listings reuse the reference for each unchanged expandable local or
+	// bound parameter in that frame.
 	FrameLocals(ctx context.Context, frame int) ([]Variable, error)
-	Variables(ctx context.Context, reference ValueReference) ([]Variable, error)
+
+	// Variables reads one bounded page of immediate children in the current
+	// paused state. Page arguments follow VariablePage.Normalize. Select the
+	// child kind before applying the range. An absent kind or a start at or
+	// beyond the end returns an empty page. A short successful page means the
+	// selected sequence is exhausted, including when its length is unknown.
+	// Recognized modes that cannot be paged safely return an error matching
+	// errors.ErrUnsupported. If VariableFilterAll is unsupported, request
+	// VariableFilterNamed or VariableFilterIndexed on the same reference,
+	// using offsets within that kind. Invalid, unknown, or expired references
+	// while paused return an error matching ErrInvalidValueReference.
+	//
+	// Callers may retain the page as a read-only snapshot. Its slice entries
+	// and counts remain readable across later calls, resume, and Close. Only
+	// the expansion references expire.
+	// Repeated reads of the same position in a parent's named or indexed
+	// sequence reuse the child's reference for that stop.
+	//
+	// The producing session checks the context during reads and before publishing
+	// the complete page and its new handles together. A malformed UTF-8 key in
+	// the requested page is a child-read error. Read failure, cancellation,
+	// termination, or handle exhaustion before publication returns a nil page
+	// and an error. Exhaustion preserves previously issued handles. If remote
+	// delivery fails after publication, the caller also receives a nil page
+	// and an error. Context errors preserve errors.Is identity. Canceling an
+	// inspection affects only that request.
+	Variables(ctx context.Context, reference ValueReference, page VariablePage) ([]Variable, error)
 	Evaluate(ctx context.Context, expression string) (Value, error)
 	EvaluateFrame(ctx context.Context, frame int, expression string) (Value, error)
 }
