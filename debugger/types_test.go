@@ -48,7 +48,7 @@ func (sessionContract) FrameLocals(ctx context.Context, frame int) ([]debugger.V
 	return nil, nil
 }
 
-func (sessionContract) Variables(ctx context.Context, reference debugger.ValueReference) ([]debugger.Variable, error) {
+func (sessionContract) Variables(context.Context, debugger.ValueReference, debugger.VariablePage) ([]debugger.Variable, error) {
 	return nil, nil
 }
 

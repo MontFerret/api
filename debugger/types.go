@@ -19,14 +19,29 @@ type (
 	// an executable debug point.
 	BreakpointBindingMode int
 
-	// Value is a safely formatted debugger value.
+	// Value describes a value without reading its children. Producing Type and
+	// Display takes bounded work and space. Presentation and counts are
+	// detached snapshots that remain readable after the stop.
 	Value struct {
-		Type      string         `json:"type"`
-		Display   string         `json:"display"`
+		// Type is the user-facing semantic type, including for host values.
+		Type string `json:"type"`
+		// Display is a cheap, bounded summary. Collection summaries can use a
+		// cheaply known size without previewing elements.
+		Display string `json:"display"`
+		// Reference is positive when safe, bounded expansion is available.
+		// A known empty collection or a summary-only value has reference zero.
 		Reference ValueReference `json:"reference"`
+
+		// IndexedCount and NamedCount are optional, read-only exact counts of
+		// each child kind. Nil means unknown. A present count is nonnegative
+		// and can be zero. A known count alone does not grant expansion.
+		IndexedCount *int64 `json:"indexedCount,omitempty"`
+		NamedCount   *int64 `json:"namedCount,omitempty"`
 	}
 
-	// Variable describes a visible local or bind parameter.
+	// Variable describes a local, bind parameter, or immediate child of a
+	// debugger value. A named child's Name preserves its valid UTF-8 key
+	// exactly. An indexed child's Name is its absolute decimal index.
 	Variable struct {
 		Name    string `json:"name"`
 		Value   Value  `json:"value"`

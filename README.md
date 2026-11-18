@@ -263,15 +263,19 @@ and any restrictions for debug compilation.
 Native Ferret produces one-based lines and byte columns, with zero-based,
 half-open byte spans. Source names are identities and need not be filesystem
 paths; anonymous sources have an empty name. Adapters translate native indexed
-source text into the portable `Source` representation. Portable coordinates, debugger
-values, variables, frames, breakpoints, and reasons retain their existing representations.
+source text into the portable `Source` representation.
 Encoded content uses the new nested metadata shape described below. Debugger events
 retain their field names, including `output`, whose value is materialized `*Content`.
 
-`debugger.ValueReference.Valid` accepts positive references. References are scoped
-to a paused state and become stale when execution resumes. `debugger.NoFunction`
-identifies the top-level program body. Compiler table identifiers and validation
-remain implementation details.
+Debugger values carry a semantic type, a shallow display summary, and optional
+indexed and named child counts. Describing a value reads no children. To expand
+a positive reference, call `Session.Variables(ctx, ref, debugger.VariablePage{...})`.
+The zero-value request reads at most `debugger.DefaultVariablePageSize` children.
+Callers can retain a page as a read-only snapshot after its expansion references
+expire on resume, termination, or close. [Debugger inspection guide](docs/debugger-inspection.md)
+
+`debugger.NoFunction` identifies the top-level program body. Compiler table
+identifiers and validation remain implementation details.
 
 Debugger commands are `StepIn`, `StepOver`, and `StepOut`. Breakpoint requests use
 canonical source locations and binding options. `ReplaceBreakpoints(ctx, sourceName,
