@@ -76,9 +76,16 @@ Repeated and overlapping pages agree on names, order and values. To obtain an
 indexed child's source position, subtract the named prefix length from its
 offset in the combined sequence.
 Adding both counts can overflow even for a representable range. The named key
-`"0"` and indexed child zero occupy distinct positions. Clients can request
-each kind separately. A recognized mode whose order or boundary cannot be
-determined safely fails with `errors.ErrUnsupported`.
+`"0"` and indexed child zero occupy distinct positions.
+
+A recognized mode whose order or boundary cannot be determined safely returns
+an error matching `errors.ErrUnsupported`. A positive reference may support
+only the named or indexed view. If a `VariableFilterAll` request fails, check
+`errors.Is(err, errors.ErrUnsupported)`. On a match, try `VariableFilterNamed`
+or `VariableFilterIndexed` on the same reference. Start the new view at offset
+zero, even if its count is unknown, and track its pages separately from any
+combined results. A short or empty page ends only that kind. Propagate other
+errors.
 
 For example, suppose `results` is a local returned by `FrameLocals`. Its value
 has type `Array`, display `Array(1000000)`, indexed count 1,000,000, named
@@ -133,8 +140,14 @@ a zero, negative, unknown or expired ID fails with `ErrInvalidValueReference`.
 Callers must keep session identity with each ID. Outside a paused state,
 `Variables` returns a session-state error.
 
-Within a stop, reuse the child handle for the same parent reference, kind
-and position across repeated or overlapping reads. Equivalent values under
+Within a stop, repeated frame listings reuse the root handle for each
+unchanged expandable local or bound parameter in that frame. `Locals(ctx)`
+and `FrameLocals(ctx, 0)` list the same bindings and share their references.
+The guarantee applies to each binding in its own frame, including recursive
+calls with identically named locals.
+
+Reuse the child handle for the same parent reference, kind and position
+across repeated or overlapping reads in the stop. Equivalent values under
 different parents may have different handles. If an implementation exhausts
 its handle budget or positive ID space, fail the operation atomically with a
 resource error. Existing handles stay usable until the stop ends.
@@ -232,6 +245,8 @@ check the stop generation before installing handles or updating a client tree.
   accessors must never run. Put a malformed raw key beside a literal U+FFFD
   key. Verify the malformed key fails its page and the valid key succeeds on
   its own page. Hold one page through another read, resume and close.
+  Alternate `Locals` and `FrameLocals(0)`, and repeat a caller-frame listing.
+  Verify that refreshing unchanged bindings allocates no additional root handles.
   Re-read overlapping expandable children and verify retained handles plateau.
   Fail or cancel after staging the first new child, exercise close winning
   publication, and exhaust the handle budget and positive ID range. Check

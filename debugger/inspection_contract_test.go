@@ -3,6 +3,7 @@ package debugger_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"slices"
 	"strconv"
@@ -23,6 +24,13 @@ func (s inspectionFixture) Locals(context.Context) ([]debugger.Variable, error) 
 	return []debugger.Variable{{Name: "results", Value: s.value}}, nil
 }
 
+func (s inspectionFixture) FrameLocals(ctx context.Context, frame int) ([]debugger.Variable, error) {
+	if frame != 0 {
+		return nil, fmt.Errorf("fixture has no frame %d", frame)
+	}
+	return s.Locals(ctx)
+}
+
 func (s inspectionFixture) Variables(ctx context.Context, ref debugger.ValueReference, page debugger.VariablePage) ([]debugger.Variable, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -40,9 +48,11 @@ func (s inspectionFixture) Variables(ctx context.Context, ref debugger.ValueRefe
 func TestInspectionReadsOnlyTheRequestedMillionElementArrayPage(t *testing.T) {
 	length, noNames := int64(1_000_000), int64(0)
 	var reads []int64
+	var pageCalls int
 	var session debugger.Session = inspectionFixture{
 		value: debugger.Value{Type: "Array", Display: "Array(1000000)", Reference: 1, IndexedCount: &length, NamedCount: &noNames},
 		read: func(page debugger.VariablePage) ([]debugger.Variable, error) {
+			pageCalls++
 			if page.Filter == debugger.VariableFilterNamed {
 				return nil, nil
 			}
@@ -59,6 +69,19 @@ func TestInspectionReadsOnlyTheRequestedMillionElementArrayPage(t *testing.T) {
 		t.Fatalf("Locals = %v, %v; child reads = %v", locals, err, reads)
 	}
 	value := locals[0].Value
+	if !value.Reference.Valid() {
+		t.Fatalf("array reference = %d", value.Reference)
+	}
+	topFrame := func(ctx context.Context) ([]debugger.Variable, error) { return session.FrameLocals(ctx, 0) }
+	for _, list := range []func(context.Context) ([]debugger.Variable, error){topFrame, session.Locals, topFrame} {
+		bindings, err := list(t.Context())
+		if err != nil || len(bindings) != 1 || pageCalls != 0 {
+			t.Fatalf("relisted bindings = %v, %v; page calls = %d", bindings, err, pageCalls)
+		}
+		if binding := bindings[0]; binding.Name != locals[0].Name || binding.Value.Reference != value.Reference {
+			t.Fatalf("relisted binding = %v, want %s with reference %d", binding, locals[0].Name, value.Reference)
+		}
+	}
 	if value.IndexedCount == nil || *value.IndexedCount != 1_000_000 || value.NamedCount == nil || *value.NamedCount != 0 {
 		t.Fatalf("array counts = %+v", value)
 	}
@@ -138,6 +161,29 @@ func TestInspectionContinuesAtSignedBoundaryWithIndexedFilter(t *testing.T) {
 	got, err = session.Variables(t.Context(), 1, page)
 	if err != nil || len(got) != 1 || got[0].Name != strconv.FormatInt(last, 10) || !slices.Equal(reads, []int64{last - 1, last}) {
 		t.Fatalf("indexed continuation = %v, %v; reads = %v", got, err, reads)
+	}
+}
+
+func TestInspectionUsesIndexedViewAfterUnsupportedCombinedRange(t *testing.T) {
+	combined := debugger.VariablePage{Start: 1000, Count: 2}
+	indexed := debugger.VariablePage{Filter: debugger.VariableFilterIndexed, Start: 0, Count: 2}
+	session := inspectionFixture{value: debugger.Value{Reference: 1}, read: func(page debugger.VariablePage) ([]debugger.Variable, error) {
+		switch page {
+		case combined:
+			return nil, fmt.Errorf("cannot locate the named/indexed boundary: %w", errors.ErrUnsupported)
+		case indexed:
+			return []debugger.Variable{{Name: "0"}, {Name: "1"}}, nil
+		default:
+			return nil, fmt.Errorf("unexpected page %+v", page)
+		}
+	}}
+	got, err := session.Variables(t.Context(), session.value.Reference, combined)
+	if got != nil || !errors.Is(err, errors.ErrUnsupported) {
+		t.Fatalf("combined page = %v, %v; want nil and unsupported", got, err)
+	}
+	got, err = session.Variables(t.Context(), session.value.Reference, indexed)
+	if err != nil || len(got) != 2 || got[0].Name != "0" || got[1].Name != "1" {
+		t.Fatalf("first indexed page = %v, %v", got, err)
 	}
 }
 

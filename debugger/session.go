@@ -58,7 +58,14 @@ type Session interface {
 	// Nil or canceled contexts return an error.
 	Breakpoints(ctx context.Context) ([]Breakpoint, error)
 	Frames(ctx context.Context) ([]Frame, error)
+
+	// Locals is equivalent to FrameLocals(ctx, 0), including the references
+	// returned for expandable bindings.
 	Locals(ctx context.Context) ([]Variable, error)
+
+	// FrameLocals lists a frame's visible bindings. Within one stop, repeated
+	// listings reuse the reference for each unchanged expandable local or
+	// bound parameter in that frame.
 	FrameLocals(ctx context.Context, frame int) ([]Variable, error)
 
 	// Variables reads one bounded page of immediate children in the current
@@ -67,8 +74,10 @@ type Session interface {
 	// beyond the end returns an empty page. A short successful page means the
 	// selected sequence is exhausted, including when its length is unknown.
 	// Recognized modes that cannot be paged safely return an error matching
-	// errors.ErrUnsupported. Invalid, unknown, or expired references while
-	// paused return an error matching ErrInvalidValueReference.
+	// errors.ErrUnsupported. If VariableFilterAll is unsupported, request
+	// VariableFilterNamed or VariableFilterIndexed on the same reference,
+	// using offsets within that kind. Invalid, unknown, or expired references
+	// while paused return an error matching ErrInvalidValueReference.
 	//
 	// Callers may retain the page as a read-only snapshot. Its slice entries
 	// and counts remain readable across later calls, resume, and Close. Only

@@ -28,7 +28,9 @@ type (
 		// Display is a cheap, bounded summary. Collection summaries can use a
 		// cheaply known size without previewing elements.
 		Display string `json:"display"`
-		// Reference is positive when safe, bounded expansion is available.
+		// Reference is positive when at least one paging mode is safe and bounded.
+		// A named or indexed view may be available even if VariableFilterAll
+		// is unsupported.
 		// A known empty collection or a summary-only value has reference zero.
 		Reference ValueReference `json:"reference"`
 
